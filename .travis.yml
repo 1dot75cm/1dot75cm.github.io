@@ -1,10 +1,10 @@
+---
 language: node_js
 node_js:
     - "4.2"
 
-# Handle git submodules myself
 git:
-    submodules: false
+    submodules: true
 
 before_install:
     - echo $SSH_KEY | base64 --decode > ~/.ssh/id_rsa
@@ -13,7 +13,6 @@ before_install:
     - chmod 0644 ~/.ssh/id_rsa.pub
 
 install:
-    - git submodule update --init --recursive
     - npm install -g hexo-cli
     - npm install
 
@@ -25,4 +24,5 @@ script:
     - hexo generate
 
 after_success:
-    - hexo deploy
+    - chmod 0755 deploy.sh
+    - sh deploy.sh

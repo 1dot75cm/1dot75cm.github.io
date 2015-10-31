@@ -60,3 +60,5 @@ categories: Fedora
 20. 验证软件包，Done
 
 以上就是一个完整的 RPM 包升级过程。关于 trigger 的详细信息，请参考 {% link 这里 https://fedoraproject.org/wiki/How_to_create_an_RPM_package/zh-hk#Trigger %}，Done
+
+-- EOF --
