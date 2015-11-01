@@ -295,24 +295,17 @@
 <p>在 Fedora 中，默认用户关联 unconfined_t 标签，该标签是无限制的，相当于未启用 SELinux。这主要为了兼容性考虑，targeted 规则仅限制网络相关应用。Red Hat 建议用户关联非 unconfined_t 标签来提高安全性。</p>
 <ol>
 <li>配置账户映射 SELinux user</li>
-</ol>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># semanage login -a -s staff_u -r s0:c0.c1023 Jone</span></span><br></pre></td></tr></table></figure>
-<ol>
 <li>配置 sudo，指定需要转换的 ROLE/TYPE</li>
-</ol>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># echo "Jone ALL=(ALL) TYPE=unconfined_t ROLE=unconfined_r ALL" &gt;&gt; /etc/sudoers.d/Jone</span></span><br></pre></td></tr></table></figure>
-<ol>
 <li>对 home 目录重新进行标记，并重启</li>
-</ol>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># restorecon -R -v /home/Jone</span></span><br></pre></td></tr></table></figure>
-<ol>
 <li>现在你的登陆 shell 就是以 staff_u 用户运行</li>
-</ol>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ id -Z</span><br><span class="line">staff_u:staff_r:staff_t:s0<span class="operator">-s</span>0:c0.c1023</span><br></pre></td></tr></table></figure>
-<ol>
 <li>如果你需要执行系统管理操作，可使用 sudo 进行提权，这和原来一模一样</li>
-</ol>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ sudo id -Z</span><br><span class="line">staff_u:unconfined_r:unconfined_t:s0<span class="operator">-s</span>0:c0.c1023</span><br></pre></td></tr></table></figure>
+</ol>
+
 <h2 id="广告">广告</h2><p>最后，插播广告。Fedora 社区源正在使用 SELinux 加固软件，目前已完成了 sogoupinyin。</p>
 <p>安装 sogoupinyin SELinux 模块，禁止 sogou 访问网络：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># dnf install sogoupinyin sogoupinyin-selinux</span></span><br><span class="line"><span class="comment"># setsebool -P sogou_access_network=0</span></span><br></pre></td></tr></table></figure>
