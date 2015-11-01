@@ -59,7 +59,7 @@ SELinux 为系统提供了额外的一层保护，能够在一定程度上防止
 
 {% codeblock lang:bash %}
 $ id -Z
-confined_u:staff_r:staff_t:s0-s0:c0.c1023
+staff_u:staff_r:staff_t:s0-s0:c0.c1023
 {% endcodeblock %}
 
 5. 如果你需要执行系统管理操作，可使用 sudo 进行提权，这和原来一模一样
