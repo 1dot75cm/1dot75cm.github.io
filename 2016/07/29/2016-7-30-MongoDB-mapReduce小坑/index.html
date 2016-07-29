@@ -1,0 +1,777 @@
+<!doctype html>
+<html class="theme-next   use-motion ">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  <link href="/vendors/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css"/>
+
+
+
+
+  
+    <link href='//fonts.lug.ustc.edu.cn/css?family=Lato:300,400,700,400italic&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
+  
+
+
+
+<link href="/vendors/font-awesome/css/font-awesome.min.css?v=4.4.0" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=0.4.5.2" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="MongoDB," />
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="little boy" type="application/atom+xml" />
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=0.4.5.2" />
+
+
+
+
+
+
+<meta name="description" content="自从用 Scrapy 抓到了淘宝数据，就想着结合 Flask 写个搜索服务，可以聚合搜索淘宝、京东等电商的商品。说干就干，几天就写了一个 Demo，见 taobaobao。数据库使用 MongoDB，这期间遇到一个 mapReduce 的小坑。记录之～
+Map-ReduceMap-Reduce 是一种计算模型，将大量数据分解 (Map) 执行，然后再将结果合并成最终结果 (Reduce)。Mong">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MongoDB mapReduce 小坑">
+<meta property="og:url" content="http://cm.fdzh.org/2016/07/29/2016-7-30-MongoDB-mapReduce小坑/index.html">
+<meta property="og:site_name" content="little boy">
+<meta property="og:description" content="自从用 Scrapy 抓到了淘宝数据，就想着结合 Flask 写个搜索服务，可以聚合搜索淘宝、京东等电商的商品。说干就干，几天就写了一个 Demo，见 taobaobao。数据库使用 MongoDB，这期间遇到一个 mapReduce 的小坑。记录之～
+Map-ReduceMap-Reduce 是一种计算模型，将大量数据分解 (Map) 执行，然后再将结果合并成最终结果 (Reduce)。Mong">
+<meta property="og:updated_time" content="2016-07-29T17:05:10.053Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MongoDB mapReduce 小坑">
+<meta name="twitter:description" content="自从用 Scrapy 抓到了淘宝数据，就想着结合 Flask 写个搜索服务，可以聚合搜索淘宝、京东等电商的商品。说干就干，几天就写了一个 Demo，见 taobaobao。数据库使用 MongoDB，这期间遇到一个 mapReduce 的小坑。记录之～
+Map-ReduceMap-Reduce 是一种计算模型，将大量数据分解 (Map) 执行，然后再将结果合并成最终结果 (Reduce)。Mong">
+
+
+
+<script type="text/javascript" id="hexo.configuration">
+  var CONFIG = {
+    scheme: 'Mist',
+    sidebar: 'hide',
+    motion: true
+  };
+</script>
+
+  <title> MongoDB mapReduce 小坑 | little boy </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  <!--[if lte IE 8]>
+  <div style=' clear: both; height: 59px; padding:0 0 0 15px; position: relative;margin:0 auto;'>
+    <a href="http://windows.microsoft.com/en-US/internet-explorer/products/ie/home?ocid=ie6_countdown_bannercode">
+      <img src="http://7u2nvr.com1.z0.glb.clouddn.com/picouterie.jpg" border="0" height="42" width="820"
+           alt="You are using an outdated browser. For a faster, safer browsing experience, upgrade for free today or use other browser ,like chrome firefox safari."
+           style='margin-left:auto;margin-right:auto;display: block;'/>
+    </a>
+  </div>
+<![endif]-->
+  
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-67183407-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+
+
+
+
+  <div class="container one-column page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">little boy</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle"></p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu ">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-home fa-fw"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-th fa-fw"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-archive fa-fw"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-tags fa-fw"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+      
+    </ul>
+  
+
+  
+</nav>
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div id="content" class="content">
+          
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                MongoDB mapReduce 小坑
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            发表于
+            <time itemprop="dateCreated" datetime="2016-07-29T16:26:10+00:00" content="2016-07-30 00:26:10">
+              2016-07-30 00:26:10
+            </time>
+          </span>
+
+          
+            <span class="post-category" >
+              &nbsp; | &nbsp; 分类于
+              
+                <span itemprop="about" itemscope itemtype="https://schema.org/Thing">
+                  <a href="/categories/Database/" itemprop="url" rel="index">
+                    <span itemprop="name">Database</span>
+                  </a>
+                </span>
+
+                
+                
+
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+              &nbsp; | &nbsp;
+              <a href="/2016/07/29/2016-7-30-MongoDB-mapReduce小坑/#comments" itemprop="discussionUrl">
+                <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2016/07/29/2016-7-30-MongoDB-mapReduce小坑/" itemprop="commentsCount"></span>
+              </a>
+            </span>
+            
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body">
+
+      
+      
+
+      
+        <span itemprop="articleBody"><p>自从用 Scrapy 抓到了淘宝数据，就想着结合 Flask 写个搜索服务，可以聚合搜索淘宝、京东等电商的商品。说干就干，几天就写了一个 Demo，见 <a href="https://github.com/1dot75cm/taobaobao/" target="_blank" rel="external">taobaobao</a>。数据库使用 MongoDB，这期间遇到一个 mapReduce 的小坑。记录之～</p>
+<h2 id="Map-Reduce"><a href="#Map-Reduce" class="headerlink" title="Map-Reduce"></a>Map-Reduce</h2><p>Map-Reduce 是一种计算模型，将大量数据分解 (Map) 执行，然后再将结果合并成最终结果 (Reduce)。MongoDB 提供<a href="https://docs.mongodb.com/manual/reference/command/mapReduce/#dbcmd.mapReduce" target="_blank" rel="external">mapReduce</a> 数据库命令。</p>
+<h2 id="mapReduce-Format"><a href="#mapReduce-Format" class="headerlink" title="mapReduce Format"></a>mapReduce Format</h2><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">db.collection.mapReduce(</span><br><span class="line">  <span class="xml"><span class="tag">&lt;<span class="title">map</span> <span class="attribute">function</span>&gt;</span>,             // 分解数据，发出键值对</span><br><span class="line">  <span class="tag">&lt;<span class="title">reduce</span> <span class="attribute">function</span>&gt;</span>,          // 汇总数据</span><br><span class="line">  &#123;</span><br><span class="line">    out: <span class="tag">&lt;<span class="title">collection</span>&gt;</span>,        // 可输出至collection或inline</span><br><span class="line">    query: <span class="tag">&lt;<span class="title">document</span>&gt;</span>,        // 符合条件的文档，将传入map函数</span><br><span class="line">    sort: <span class="tag">&lt;<span class="title">document</span>&gt;</span>,         // 排序输入文档</span><br><span class="line">    limit: <span class="tag">&lt;<span class="title">number</span>&gt;</span>,          // 限制输入map函数的文档数</span><br><span class="line">    finalize: <span class="tag">&lt;<span class="title">function</span>&gt;</span>,     // 接收reduce函数输出，作后处理（计算平均数，裁剪数组，清除冗余）</span><br><span class="line">    scope: <span class="tag">&lt;<span class="title">document</span>&gt;</span>,        // 指定map, reduce, finalize函数可访问的全局变量</span><br><span class="line">    jsMode: <span class="tag">&lt;<span class="title">boolean:</span> <span class="attribute">false</span>&gt;</span>, // 指定是否将map-reduce函数的中间数据转换为BSON</span><br><span class="line">    verbose: <span class="tag">&lt;<span class="title">boolean:</span> <span class="attribute">true</span>&gt;</span>, // 指定是否包含定时器信息</span><br><span class="line">    bypassDocumentValidation: <span class="tag">&lt;<span class="title">boolean</span>&gt;</span> // 旁路文档验证可插入不符合验证要求的文档</span><br><span class="line">  &#125;</span><br><span class="line">)</span></span><br></pre></td></tr></table></figure>
+<h3 id="Example-1"><a href="#Example-1" class="headerlink" title="Example 1"></a>Example 1</h3><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">db.orders.mapReduce (</span><br><span class="line">  <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123; emit( <span class="keyword">this</span>.cust_id, <span class="keyword">this</span>.amount ); &#125;,   <span class="comment">// map函数</span></span><br><span class="line">  <span class="function"><span class="keyword">function</span>(<span class="params">key, values</span>) </span>&#123; <span class="keyword">return</span> <span class="built_in">Array</span>.sum( values ) &#125;, <span class="comment">// reduce函数</span></span><br><span class="line">  &#123;</span><br><span class="line">    query: &#123; status: <span class="string">"A"</span> &#125;,  <span class="comment">// 查询条件</span></span><br><span class="line">    out: <span class="string">"order_totals"</span>  <span class="comment">// 输出至 Collection</span></span><br><span class="line">  &#125;</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>该示例中，MongoDB 应用 map 至每个文档（匹配查询条件的文档）。map 函数发出 key-value 对。对于那些包含重复值的键，MongoDB 应用 reduce，收集/汇总聚合数据。最后，存储结果至 Collection。还可以通过 finalize 函数，进一步处理结果。</p>
+<p>所有 map-reduce 函数都运行在 mongod 进程中的 JavaScript。Map-reduce 操作以单个 collection 中的文档作为输入，在开始 map 阶段前，可以任意执行排序和限制操作。mapReduce 可以以文档返回 map-reduce 操作的结果，也可以将结果写入 Collection。输入和输出 collection 可以被分片。</p>
+<p>注意：对于大多聚合操作，Aggregation Pipeline 提供更好的性能和一致性。map-reduce 提供更多灵活性。</p>
+<h3 id="Example-2"><a href="#Example-2" class="headerlink" title="Example 2"></a>Example 2</h3><p>按 catid 分组，提取 categories 第二项作为大类，第三项作为子类。数据格式如下：</p>
+<figure class="highlight xquery"><figcaption><span>lang=json</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;<span class="string">'_id'</span>: ObjectId(<span class="string">'5794d204d89717bb1a251f1b'</span>),</span><br><span class="line"><span class="string">'categories'</span>: [</span><br><span class="line">  &#123;<span class="string">'catid'</span>: <span class="string">'0'</span>, <span class="string">'name'</span>: <span class="string">'所有分类'</span>&#125;,</span><br><span class="line">  &#123;<span class="string">'catid'</span>: <span class="string">'50065355'</span>, <span class="string">'name'</span>: <span class="string">'五金/工具'</span>&#125;,</span><br><span class="line">  &#123;<span class="string">'catid'</span>: <span class="string">'50065362'</span>, <span class="string">'name'</span>: <span class="string">'刃具'</span>&#125;,</span><br><span class="line">  &#123;<span class="string">'catid'</span>: <span class="string">'50065567'</span>, <span class="string">'name'</span>: <span class="string">'铣刀类'</span>&#125;,</span><br><span class="line">  &#123;<span class="string">'catid'</span>: <span class="string">'50065976'</span>, <span class="string">'name'</span>: <span class="string">'立铣刀'</span>&#125; ] &#125;,</span><br></pre></td></tr></table></figure>
+<p>需要的输出格式：<br><figure class="highlight xquery"><figcaption><span>lang=json</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#123;<span class="string">'catid'</span>: <span class="string">'50065355'</span>, <span class="string">'name'</span>: <span class="string">'五金/工具'</span>, <span class="string">'sub'</span>:[</span><br><span class="line">  &#123;<span class="string">'catid'</span>: 子类<span class="number">1</span>, <span class="string">'name'</span>: 子类<span class="number">1</span>&#125;,</span><br><span class="line">  &#123;<span class="string">'catid'</span>: 子类<span class="number">2</span>, <span class="string">'name'</span>: 子类<span class="number">2</span>&#125; ]</span><br><span class="line">&#125;,</span><br></pre></td></tr></table></figure></p>
+<p>Map funcion：<br><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> map = <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  key = <span class="keyword">this</span>.categories[<span class="number">1</span>].catid;</span><br><span class="line">  value = &#123;</span><br><span class="line">    name: <span class="keyword">this</span>.categories[<span class="number">1</span>].name,</span><br><span class="line">    catid: <span class="keyword">this</span>.categories[<span class="number">1</span>].catid,</span><br><span class="line">    sub: [&#123;</span><br><span class="line">      catid: <span class="keyword">this</span>.categories[<span class="number">2</span>].catid,</span><br><span class="line">      name: <span class="keyword">this</span>.categories[<span class="number">2</span>].name</span><br><span class="line">    &#125;]</span><br><span class="line">  &#125;</span><br><span class="line">  emit(key, value);  <span class="comment">// 按key进行分组</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>针对每个 BSON 对象应用 map 函数，emit 返回的 key 用于分组。处理过程中，如果遇到相同 key，则将 value 值 push 至临时数组；待数组达到指定大小，则传递给 reduce 的 values 进行聚合处理；reduce 返回值将再次添加至临时数组，数组达到大小，reduce 聚合处理，直至所有相同 key 的值都聚合完成，输出。<br>由于 reduce 需要被反复调用，所以要求 reduce 返回的文档必须能作为第二个参数的一个元素。<br>（之前，不了解 mapReduce 会分批处理，所以 Reduce 函数没有取到所有值，导致结果缺项。）</p>
+<p>Reduce funcion：<br><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> reduce = <span class="function"><span class="keyword">function</span>(<span class="params">key, values</span>) </span>&#123;  <span class="comment">// values为重复key项组成的数组</span></span><br><span class="line">  <span class="keyword">var</span> tmp = [];</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">var</span> i=<span class="number">0</span>; i&lt;values.length; i++) &#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">var</span> j <span class="keyword">in</span> values[i].sub) &#123;  <span class="comment">// 分批迭代，sub可能包含多项子类</span></span><br><span class="line">      <span class="keyword">var</span> vaild = <span class="number">0</span>;</span><br><span class="line">      <span class="keyword">for</span> (<span class="keyword">var</span> k <span class="keyword">in</span> tmp)</span><br><span class="line">        <span class="keyword">if</span> (tmp[k].catid === values[i].sub[j].catid)</span><br><span class="line">          vaild++;</span><br><span class="line">          <span class="keyword">if</span> (vaild === <span class="number">0</span>)</span><br><span class="line">            tmp.push(values[i].sub[j]);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> &#123;  <span class="comment">// 结果会返回values进行分批迭代</span></span><br><span class="line">      name: values[<span class="number">0</span>].name,</span><br><span class="line">      catid: key,</span><br><span class="line">      sub: tmp</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>执行 mapReduce 命令：<br><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> result = db.categories.mapReduce( map, reduce, &#123; out: &#123;<span class="string">'inline'</span>: <span class="number">1</span>&#125;, finalize: final &#125; ).find()</span><br><span class="line">[ result[i].value <span class="keyword">for</span>(i <span class="keyword">in</span> result) ]</span><br></pre></td></tr></table></figure></p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ul>
+<li><a href="https://docs.mongodb.com/manual/reference/command/mapReduce/#dbcmd.mapReduce" target="_blank" rel="external">mapReduce reference</a>
+</li>
+</ul>
+<p>– EOF –</p>
+</span>
+      
+    </div>
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/MongoDB/" rel="tag">#MongoDB</a>
+          
+    <a href="javascript:window.location=%22http://1.qinghuai.org/stories/new?url=%22+encodeURIComponent(document.location)+%22&amp;title=%22+encodeURIComponent(document.title)" onmouseout="this.style.cssText='background-color:#FFF;padding:4px;float:right;border:1px solid #fff;'" onmouseover="this.style.cssText='background-color:#e1e1e1;padding:4px;float:right;border:1px solid #ccc;'" style="background-color:#fff;padding:4px;float:right;" title="分至一点情怀">Q+</a>
+    <a href="javascript:window.location=%22http://hack.fdzh.org/submitlink?u=%22+encodeURIComponent(document.location)+%22&amp;t=%22+encodeURIComponent(document.title)" onmouseout="this.style.cssText='background-color:#FFF;padding:4px;float:right;border:1px solid #fff;'" onmouseover="this.style.cssText='background-color:#e1e1e1;padding:4px;float:right;border:1px solid #ccc;'" style="background-color:#fff;padding:4px;float:right;" title="分享至 Fed Hacker">H+</a>
+        </div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2016/07/07/2016-7-8-抓取淘宝商品数据/" rel="next" title="抓取淘宝商品数据">
+                <i class="fa fa-chevron-left"></i> 抓取淘宝商品数据
+              </a>
+            
+          </div>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+        </div>
+
+        
+
+
+        
+  <div class="comments" id="comments">
+    
+      <div id="disqus_thread">
+        <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+      </div>
+    
+  </div>
+
+
+      </div>
+
+      
+        
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel ">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" src="/images/default_avatar.jpg" alt="1dot75cm" itemprop="image"/>
+          <p class="site-author-name" itemprop="name">1dot75cm</p>
+        </div>
+        <p class="site-description motion-element" itemprop="description">一只 Linux 菜鸟 ...</p>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">5</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          <div class="site-state-item site-state-categories">
+            <a href="/categories">
+              <span class="site-state-item-count">3</span>
+              <span class="site-state-item-name">分类</span>
+              </a>
+          </div>
+
+          <div class="site-state-item site-state-tags">
+            <a href="/tags">
+              <span class="site-state-item-count">6</span>
+              <span class="site-state-item-name">标签</span>
+              </a>
+          </div>
+
+        </nav>
+
+        
+          <div class="feed-link motion-element">
+            <a href="/atom.xml" rel="alternate">
+              <i class="fa fa-rss"></i>
+              RSS
+            </a>
+          </div>
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/1dot75cm" target="_blank">
+                  
+                    <i class="fa fa-github"></i> GitHub
+                  
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+          <div class="cc-license motion-element" itemprop="license">
+            <a href="http://creativecommons.org/licenses/by-nc-sa/4.0" class="cc-opacity" target="_blank">
+              <img src="/images/cc-by-nc-sa.svg" alt="Creative Commons" />
+            </a>
+          </div>
+        
+
+        <div class="links-of-author motion-element">
+          
+            <p class="site-author-name"></p>
+            
+              <span class="links-of-author-item">
+                <a href="http://www.fdzh.org" target="_blank">Fedora 中文社区</a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://repo.fdzh.org" target="_blank">Fedora 社区源</a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://hack.fdzh.org" target="_blank">Fedora Hacker</a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="https://1.qinghuai.org" target="_blank">一点情怀</a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://p.fdzh.org" target="_blank">Paste</a>
+              </span>
+            
+          
+        </div>
+
+      </section>
+
+      
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc-indicator-top post-toc-indicator">
+            <i class="fa fa-angle-double-up"></i>
+          </div>
+          <div class="post-toc">
+            
+              
+            
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Map-Reduce"><span class="nav-number">1.</span> <span class="nav-text">Map-Reduce</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#mapReduce-Format"><span class="nav-number">2.</span> <span class="nav-text">mapReduce Format</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Example-1"><span class="nav-number">2.1.</span> <span class="nav-text">Example 1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Example-2"><span class="nav-number">2.2.</span> <span class="nav-text">Example 2</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考"><span class="nav-number">3.</span> <span class="nav-text">参考</span></a></li></ol></div>
+            
+          </div>
+          <div class="post-toc-indicator-bottom post-toc-indicator">
+            <i class="fa fa-angle-double-down"></i>
+          </div>
+        </section>
+      
+
+    </div>
+  </aside>
+
+
+      
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy;  2015 - 
+  <span itemprop="copyrightYear">2016</span>
+  <span class="with-love">
+    <i class="icon-next-heart fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">1dot75cm</span>
+</div>
+
+<div class="powered-by">
+  由 <a class="theme-link" href="http://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Mist
+  </a>
+</div>
+
+
+
+      </div>
+    </footer>
+
+    <div class="back-to-top"></div>
+  </div>
+
+  <script type="text/javascript" src="/vendors/jquery/index.js?v=2.1.3"></script>
+
+  
+  
+
+  
+    
+    
+
+  
+
+    <script type="text/javascript">
+      var disqus_shortname = 'zshparty';
+      var disqus_identifier = '2016/07/29/2016-7-30-MongoDB-mapReduce小坑/';
+      var disqus_title = 'MongoDB mapReduce 小坑';
+      var disqus_url = 'http://cm.fdzh.org/2016/07/29/2016-7-30-MongoDB-mapReduce小坑/';
+
+      function run_disqus_script(disqus_script){
+        var dsq = document.createElement('script');
+        dsq.type = 'text/javascript';
+        dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+      }
+
+      run_disqus_script('count.js');
+      
+        run_disqus_script('embed.js');
+      
+    </script>
+  
+
+
+  
+
+  
+  <script type="text/javascript" src="/vendors/fancybox/source/jquery.fancybox.pack.js"></script>
+  <script type="text/javascript" src="/js/fancy-box.js?v=0.4.5.2"></script>
+
+
+  <script type="text/javascript" src="/js/helpers.js?v=0.4.5.2"></script>
+  <script type="text/javascript" src="/vendors/velocity/velocity.min.js"></script>
+<script type="text/javascript" src="/vendors/velocity/velocity.ui.min.js"></script>
+
+<script type="text/javascript" src="/js/motion.js?v=0.4.5.2" id="motion.global"></script>
+
+
+  <script type="text/javascript" src="/vendors/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  <script type="text/javascript" src="/vendors/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  
+<script type="text/javascript" src="/js/bootstrap.scrollspy.js?v=0.4.5.2" id="bootstrap.scrollspy.custom"></script>
+
+
+<script type="text/javascript" id="sidebar.toc.highlight">
+  $(document).ready(function () {
+    var tocSelector = '.post-toc';
+    var $tocSelector = $(tocSelector);
+    var activeCurrentSelector = '.active-current';
+
+    $tocSelector
+      .on('activate.bs.scrollspy', function () {
+        var $currentActiveElement = $(tocSelector + ' .active').last();
+
+        removeCurrentActiveClass();
+        $currentActiveElement.addClass('active-current');
+
+        $tocSelector[0].scrollTop = $currentActiveElement.position().top;
+      })
+      .on('clear.bs.scrollspy', function () {
+        removeCurrentActiveClass();
+      });
+
+    function removeCurrentActiveClass () {
+      $(tocSelector + ' ' + activeCurrentSelector)
+        .removeClass(activeCurrentSelector.substring(1));
+    }
+
+    function processTOC () {
+      getTOCMaxHeight();
+      toggleTOCOverflowIndicators();
+    }
+
+    function getTOCMaxHeight () {
+      var height = $('.sidebar').height() -
+                   $tocSelector.position().top -
+                   $('.post-toc-indicator-bottom').height();
+
+      $tocSelector.css('height', height);
+
+      return height;
+    }
+
+    function toggleTOCOverflowIndicators () {
+      tocOverflowIndicator(
+        '.post-toc-indicator-top',
+        $tocSelector.scrollTop() > 0 ? 'show' : 'hide'
+      );
+
+      tocOverflowIndicator(
+        '.post-toc-indicator-bottom',
+        $tocSelector.scrollTop() >= $tocSelector.find('ol').height() - $tocSelector.height() ? 'hide' : 'show'
+      )
+    }
+
+    $(document).on('sidebar.motion.complete', function () {
+      processTOC();
+    });
+
+    $('body').scrollspy({ target: tocSelector });
+    $(window).on('resize', function () {
+      if ( $('.sidebar').hasClass('sidebar-active') ) {
+        processTOC();
+      }
+    });
+
+    onScroll($tocSelector);
+
+    function onScroll (element) {
+      element.on('mousewheel DOMMouseScroll', function (event) {
+          var oe = event.originalEvent;
+          var delta = oe.wheelDelta || -oe.detail;
+
+          this.scrollTop += ( delta < 0 ? 1 : -1 ) * 30;
+          event.preventDefault();
+
+          toggleTOCOverflowIndicators();
+      });
+    }
+
+    function tocOverflowIndicator (indicator, action) {
+      var $indicator = $(indicator);
+      var opacity = action === 'show' ? 1 : 0;
+      $indicator.velocity ?
+        $indicator.velocity('stop').velocity({
+          opacity: opacity
+        }, { duration: 100 }) :
+        $indicator.stop().animate({
+          opacity: opacity
+        }, 100);
+    }
+
+  });
+</script>
+
+<script type="text/javascript" id="sidebar.nav">
+  $(document).ready(function () {
+    var html = $('html');
+    var TAB_ANIMATE_DURATION = 200;
+    var hasVelocity = $.isFunction(html.velocity);
+
+    $('.sidebar-nav li').on('click', function () {
+      var item = $(this);
+      var activeTabClassName = 'sidebar-nav-active';
+      var activePanelClassName = 'sidebar-panel-active';
+      if (item.hasClass(activeTabClassName)) {
+        return;
+      }
+
+      var currentTarget = $('.' + activePanelClassName);
+      var target = $('.' + item.data('target'));
+
+      hasVelocity ?
+        currentTarget.velocity('transition.slideUpOut', TAB_ANIMATE_DURATION, function () {
+          target
+            .velocity('stop')
+            .velocity('transition.slideDownIn', TAB_ANIMATE_DURATION)
+            .addClass(activePanelClassName);
+        }) :
+        currentTarget.animate({ opacity: 0 }, TAB_ANIMATE_DURATION, function () {
+          currentTarget.hide();
+          target
+            .stop()
+            .css({'opacity': 0, 'display': 'block'})
+            .animate({ opacity: 1 }, TAB_ANIMATE_DURATION, function () {
+              currentTarget.removeClass(activePanelClassName);
+              target.addClass(activePanelClassName);
+            });
+        });
+
+      item.siblings().removeClass(activeTabClassName);
+      item.addClass(activeTabClassName);
+    });
+
+    $('.post-toc a').on('click', function (e) {
+      e.preventDefault();
+      var targetSelector = escapeSelector(this.getAttribute('href'));
+      var offset = $(targetSelector).offset().top;
+      hasVelocity ?
+        html.velocity('stop').velocity('scroll', {
+          offset: offset  + 'px',
+          mobileHA: false
+        }) :
+        $('html, body').stop().animate({
+          scrollTop: offset
+        }, 500);
+    });
+
+    // Expand sidebar on post detail page by default, when post has a toc.
+    motionMiddleWares.sidebar = function () {
+      var $tocContent = $('.post-toc-content');
+      if (CONFIG.sidebar === 'post') {
+        if ($tocContent.length > 0 && $tocContent.html().trim().length > 0) {
+          displaySidebar();
+        }
+      }
+    };
+  });
+</script>
+
+
+
+  <script type="text/javascript" src="/js/bootstrap.js"></script>
+
+  
+  
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+        processEscapes: true,
+        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    });
+  </script>
+
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Queue(function() {
+      var all = MathJax.Hub.getAllJax(), i;
+      for (i=0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+      }
+    });
+  </script>
+
+  
+    <script type="text/javascript" src="http://cdn.staticfile.org/mathjax/2.4.0/MathJax.js"></script>
+    <script type="text/javascript" src="http://cdn.staticfile.org/mathjax/2.4.0/config/TeX-AMS-MML_HTMLorMML.js"></script>
+  
+
+
+  
+  
+
+</body>
+</html>
